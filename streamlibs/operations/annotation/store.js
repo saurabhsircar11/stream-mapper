@@ -16,12 +16,32 @@ export function createAnnotationStore({ annotationState, annotationUI }) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  function isInlineAssetUrl(value) {
+    const normalized = `${value || ''}`.trim().toLowerCase();
+    return normalized.startsWith('data:') || normalized.startsWith('blob:');
+  }
+
+  function getPersistedElementSource(element) {
+    if (!(element instanceof HTMLElement)) return '';
+
+    const originalSource = element.getAttribute('data-stream-original-src')
+      || element.closest('picture')?.getAttribute('data-stream-original-src')
+      || '';
+    if (originalSource) return originalSource;
+
+    const directSource = element.getAttribute('src')
+      || element.getAttribute('srcset')
+      || '';
+    if (isInlineAssetUrl(directSource)) return '';
+    return directSource;
+  }
+
   function getCommentElementDescriptor(element) {
     return {
       tag: element.tagName.toLowerCase(),
       id: element.id || '',
       href: element.getAttribute('href') || '',
-      src: element.getAttribute('src') || '',
+      src: getPersistedElementSource(element),
       alt: element.getAttribute('alt') || '',
       title: element.getAttribute('title') || '',
       ariaLabel: element.getAttribute('aria-label') || '',
