@@ -145,6 +145,7 @@ async function requestStreamConfigFromParent() {
       startReview: getQueryParam('startReview') || getQueryParam('startreview'),
       inlineEditingAllowed: getQueryParam('inlineEditingAllowed'),
       collabRole: getQueryParam('collabRole'),
+      realtimeAnnotationEditing: getQueryParam('realtimeAnnotationEditing'),
     };
   }
 
@@ -241,6 +242,7 @@ export default async function initPreviewer() {
     startReview: previewParams.startReview || previewParams.startreview || false,
     inlineEditingAllowed: resolveInlineEditingAllowed(previewParams),
     collabRole: previewParams.collabRole || null,
+    realtimeAnnotationEditing: parseBooleanFlag(previewParams.realtimeAnnotationEditing) !== false,
   };
   await initializeTokens(window.streamConfig.token);
   await initiatePreviewer();

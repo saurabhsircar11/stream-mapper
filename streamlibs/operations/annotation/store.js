@@ -663,6 +663,12 @@ export function createAnnotationStore({ annotationState, annotationUI }) {
     annotationState.store.easyEdits.push(editRecord);
   }
 
+  function replaceEasyEdits(nextEasyEdits = []) {
+    annotationState.store.easyEdits = Array.isArray(nextEasyEdits)
+      ? nextEasyEdits
+      : [];
+  }
+
   function getChangedSegments(fromText, toText) {
     const fromValue = `${fromText || ''}`;
     const toValue = `${toText || ''}`;
@@ -832,6 +838,7 @@ export function createAnnotationStore({ annotationState, annotationUI }) {
     recordEditMessage,
     rebindEasyEditsToCurrentDom,
     rebindThreadsToCurrentDom,
+    replaceEasyEdits,
     removeThread,
     removeThreadMessage,
     replaceThreadsByType,

@@ -84,9 +84,12 @@ export async function annotationOperation() {
   if (!mainEl) return;
 
   await commentsPanel.setupAnnotationUI(mainEl);
-  store.rebindEasyEditsToCurrentDom();
-  store.applyEasyEditsToDom();
-  store.saveAnnotationStore();
+  const didInitializeRealtime = await inlineEditing.initializeRealtimeEditing();
+  if (!didInitializeRealtime) {
+    store.rebindEasyEditsToCurrentDom();
+    store.applyEasyEditsToDom();
+    store.saveAnnotationStore();
+  }
   commentsPanel.renderThreadMarkers();
   commentsPanel.renderCommentsPanel();
 }

@@ -42,6 +42,11 @@ export function getDACompatibleHtml(html) {
   return html;
 }
 
+export function getDACompatibleDocumentHtml(html) {
+  const daCompatibleHtml = getDACompatibleHtml(html);
+  return `<body><header></header><main>${daCompatibleHtml}</main><footer></footer>`;
+}
+
 function wrapHTMLForDA(html) {
   return `<body><header></header><main>${html}</main><footer></footer>`;
 }
