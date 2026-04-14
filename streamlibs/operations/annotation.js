@@ -99,7 +99,8 @@ export async function annotationOperation(options = {}) {
   } = options;
   const previousAnnotationMode = annotationUI.annotationMode || 'comments';
   const shouldRestoreInlineMode = annotationUI.inlineMode
-    && window.streamConfig?.inlineEditingAllowed !== false;
+    && window.streamConfig?.inlineEditingAllowed !== false
+    && !annotationState.isCollabComplete;
 
   inlineEditing.resetInlineEditModeState();
   annotationUI.annotationMode = shouldRestoreInlineMode ? 'edit' : previousAnnotationMode;

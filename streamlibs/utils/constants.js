@@ -236,6 +236,8 @@ export const ANNOTATION_MESSAGES = {
   inlineEditRestrictedTitle: 'Edit access restricted',
   inlineEditRestrictedDescription: 'Only collab owners can use inline editing in this review.',
   inlineEditRestrictedSnackbar: 'Inline editing is only available to collab owners.',
+  collabCompleteEditRestricted: 'Editing is disabled because this collab is complete.',
+  collabCompleteCommentRestricted: 'Comments are disabled because this collab is complete.',
   noAssets: 'No assets yet.',
   noComments: 'No comments yet. Click an element to add one.',
   noEdits: 'No edits yet. Start editing text or image alt.',

@@ -286,6 +286,7 @@ export default async function initPreviewer() {
     startReview: previewParams.startReview || previewParams.startreview || false,
     inlineEditingAllowed: resolveInlineEditingAllowed(previewParams),
     collabRole: previewParams.collabRole || null,
+    collabComplete: parseBooleanFlag(previewParams.collabComplete),
   };
   await initializeTokens(window.streamConfig.token);
   await initiatePreviewer();

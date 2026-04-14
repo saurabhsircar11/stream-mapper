@@ -15,6 +15,32 @@ export default function createCommentsPanelController({
 }) {
   const annotationService = createAnnotationServiceClient();
   const isInlineEditingAllowed = () => window.streamConfig?.inlineEditingAllowed !== false;
+
+  function isCollabComplete(snackbarMessage) {
+    if (!annotationState.isCollabComplete) return false;
+    if (snackbarMessage) showGlobalSnackbar(snackbarMessage);
+    return true;
+  }
+
+  function syncEditLabelAccessState() {
+    if (!annotationUI.panelEl) return;
+    const editLabel = annotationUI.panelEl.querySelector('label[for="annotation-inline-mode-edit"]');
+    if (editLabel instanceof HTMLElement) {
+      if (annotationState.isCollabComplete) {
+        editLabel.title = ANNOTATION_MESSAGES.collabCompleteEditRestricted;
+        editLabel.setAttribute('aria-label', ANNOTATION_MESSAGES.collabCompleteEditRestricted);
+        return;
+      }
+      if (!isInlineEditingAllowed()) {
+        editLabel.title = ANNOTATION_MESSAGES.inlineEditRestrictedDescription;
+        editLabel.setAttribute('aria-label', ANNOTATION_MESSAGES.inlineEditRestrictedDescription);
+        return;
+      }
+      editLabel.removeAttribute('title');
+      editLabel.removeAttribute('aria-label');
+    }
+  }
+
   let enableInlineEditMode = async () => {};
   let disableInlineEditMode = () => {};
   let flushPendingCommentsPanelRefresh = () => {};
@@ -102,13 +128,7 @@ export default function createCommentsPanelController({
       if (annotationUI.inlineAssetsToggleEl) annotationUI.inlineAssetsToggleEl.checked = false;
     }
 
-    if (annotationUI.inlineToggleEl && !isInlineEditingAllowed()) {
-      const editLabel = panel.querySelector('label[for="annotation-inline-mode-edit"]');
-      if (editLabel instanceof HTMLElement) {
-        editLabel.title = ANNOTATION_MESSAGES.inlineEditRestrictedDescription;
-        editLabel.setAttribute('aria-label', ANNOTATION_MESSAGES.inlineEditRestrictedDescription);
-      }
-    }
+    syncEditLabelAccessState();
   }
 
   function ensureCanvasRefreshBar() {
@@ -757,6 +777,12 @@ export default function createCommentsPanelController({
 
     annotationState.latestRemoteCollabSnapshot = snapshot;
 
+    if (snapshot?.collab && snapshot.collab.status != null) {
+      annotationState.isCollabComplete = (
+        `${snapshot.collab.status}`.trim().toLowerCase() === 'end'
+      );
+    }
+
     if (snapshot?.collab) {
       try {
         const nextThreads = annotationService.normalizeThreadsPayload(snapshot.collab);
@@ -795,6 +821,9 @@ export default function createCommentsPanelController({
     pendingCommentsPanelRefresh = false;
     captureTransientDraftsFromDom();
     renderRefreshAction();
+    syncEditLabelAccessState();
+
+    const collabComplete = isCollabComplete();
 
     const activePopupThreadId = `${annotationUI.popupEl?.dataset.threadId || ''}`.trim();
     if (activePopupThreadId) {
@@ -803,6 +832,10 @@ export default function createCommentsPanelController({
         closePopupAndSelection();
         showGlobalSnackbar(ANNOTATION_MESSAGES.closedThreadRestricted);
       }
+    }
+
+    if (collabComplete && annotationUI.popupEl) {
+      closePopupAndSelection();
     }
 
     let preservedComposer = null;
@@ -897,6 +930,7 @@ export default function createCommentsPanelController({
         const isLatestInThread = idx === groups.length - 1;
         const isClosedThread = isThreadClosed(thread);
         const canEditRootComment = !isClosedThread
+          && !collabComplete
           && isCommentEditableByCurrentUser(thread, group.comment);
         const card = document.createElement('article');
         card.className = 'annotation-panel-comment';
@@ -920,11 +954,14 @@ export default function createCommentsPanelController({
           statusSelect.className = 'annotation-panel-status-select';
           statusSelect.dataset.threadId = thread.id;
           statusSelect.dataset.messageId = group.comment.id || '';
-          statusSelect.disabled = !canEditThreadStatus;
-          if (!canEditThreadStatus) {
-            const restrictionMessage = isClosedThread
-              ? ANNOTATION_MESSAGES.closedThreadRestricted
-              : ANNOTATION_MESSAGES.updateStatusRestricted;
+          statusSelect.disabled = !canEditThreadStatus || collabComplete;
+          if (!canEditThreadStatus || collabComplete) {
+            let restrictionMessage = ANNOTATION_MESSAGES.updateStatusRestricted;
+            if (collabComplete) {
+              restrictionMessage = ANNOTATION_MESSAGES.collabCompleteCommentRestricted;
+            } else if (isClosedThread) {
+              restrictionMessage = ANNOTATION_MESSAGES.closedThreadRestricted;
+            }
             statusSelect.title = restrictionMessage;
             statusSelect.setAttribute('aria-label', restrictionMessage);
           }
@@ -990,6 +1027,7 @@ export default function createCommentsPanelController({
 
           const replyKey = `${thread.id}::${reply.id || ''}`;
           const canEditReply = !isClosedThread
+            && !collabComplete
             && isCommentEditableByCurrentUser(thread, reply);
           const isEditingReply = canEditReply && isEditingComment(thread.id, reply.id || '');
           if (isEditingReply) {
@@ -1039,7 +1077,7 @@ export default function createCommentsPanelController({
 
         card.append(repliesWrap);
 
-        if (showComments && !isClosedThread) {
+        if (showComments && !isClosedThread && !collabComplete) {
           const composerKey = `${thread.id}::${group.comment.id || ''}`;
           if (preservedComposer && preservedComposerKey === composerKey) {
             card.append(preservedComposer);
@@ -1310,6 +1348,7 @@ export default function createCommentsPanelController({
       showGlobalSnackbar(ANNOTATION_MESSAGES.commentsUnavailableSnackbar);
       return;
     }
+    if (isCollabComplete(ANNOTATION_MESSAGES.collabCompleteCommentRestricted)) return;
     const composerKey = getReplyComposerKey(threadId, commentId);
     if (pendingReplyComposerKeys.has(composerKey)) return;
 
@@ -1386,6 +1425,7 @@ export default function createCommentsPanelController({
       showGlobalSnackbar(ANNOTATION_MESSAGES.commentsUnavailableSnackbar);
       return;
     }
+    if (isCollabComplete(ANNOTATION_MESSAGES.collabCompleteCommentRestricted)) return;
     const editKey = getCommentEditorKey(threadId, commentId);
     if (pendingCommentEditIds.has(editKey)) return;
 
@@ -1440,6 +1480,7 @@ export default function createCommentsPanelController({
       showGlobalSnackbar(ANNOTATION_MESSAGES.commentsUnavailableSnackbar);
       return;
     }
+    if (isCollabComplete(ANNOTATION_MESSAGES.collabCompleteCommentRestricted)) return;
     if (popupSubmitPending) return;
     if (
       !annotationUI.popupEl
@@ -1582,6 +1623,7 @@ export default function createCommentsPanelController({
   function openPopupForElement(element, shouldScroll = false) {
     if (popupSubmitPending) return;
     if (!annotationUI.layerEl) return;
+    if (isCollabComplete()) return;
     const nextElementPath = preparePopupDraftForElement(element);
     setSelectedElement(element);
     syncPopupDraftScope(nextElementPath);
@@ -1766,6 +1808,9 @@ export default function createCommentsPanelController({
       preserveRemoteEditState = false,
     } = options;
     teardownGlobalListeners({ preserveRemoteEditState });
+    if (window.streamConfig?.collabComplete === true) {
+      annotationState.isCollabComplete = true;
+    }
     annotationUI.mainEl = mainEl;
     ensureFloatingLayer();
     ensureCommentsPanel();
@@ -1779,6 +1824,7 @@ export default function createCommentsPanelController({
     annotationState.mainClickHandler = (event) => {
       if (!isCommentsViewActive()) return;
       if (!isCommentsServiceAvailable()) return;
+      if (isCollabComplete()) return;
       if (popupSubmitPending) return;
       const { target } = event;
       if (!(target instanceof HTMLElement)) return;
@@ -1831,6 +1877,7 @@ export default function createCommentsPanelController({
       }
 
       if (target.closest('.annotation-panel-reply-btn')) {
+        if (isCollabComplete(ANNOTATION_MESSAGES.collabCompleteCommentRestricted)) return;
         const replyBtn = target.closest('.annotation-panel-reply-btn');
         if (!(replyBtn instanceof HTMLButtonElement)) return;
         const { threadId, commentId } = replyBtn.dataset;
@@ -1868,6 +1915,7 @@ export default function createCommentsPanelController({
       }
 
       if (target.closest('.annotation-panel-edit-btn')) {
+        if (isCollabComplete(ANNOTATION_MESSAGES.collabCompleteCommentRestricted)) return;
         const editBtn = target.closest('.annotation-panel-edit-btn');
         if (!(editBtn instanceof HTMLButtonElement)) return;
         const { threadId, commentId } = editBtn.dataset;
@@ -1897,6 +1945,12 @@ export default function createCommentsPanelController({
       const targetEl = store.getElementForThread(thread);
       if (!targetEl) return;
       if (isThreadClosed(thread)) {
+        annotationState.activeThreadId = thread.id;
+        renderCommentsPanel();
+        targetEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return;
+      }
+      if (isCollabComplete()) {
         annotationState.activeThreadId = thread.id;
         renderCommentsPanel();
         targetEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -1955,6 +2009,7 @@ export default function createCommentsPanelController({
       if (!isCommentsServiceAvailable()) return;
       if (!(target instanceof HTMLSelectElement)) return;
       if (!target.classList.contains('annotation-panel-status-select')) return;
+      if (isCollabComplete(ANNOTATION_MESSAGES.collabCompleteCommentRestricted)) return;
       const { threadId } = target.dataset;
       if (!threadId) return;
       const thread = store.getThreadById(threadId);
@@ -2017,6 +2072,21 @@ export default function createCommentsPanelController({
       annotationState.inlineToggleChangeHandler = async (event) => {
         const { target } = event;
         if (!(target instanceof HTMLInputElement) || !target.checked) return;
+        if (isCollabComplete()) {
+          closeCommentEditor();
+          closePopupAndSelection();
+          annotationUI.annotationMode = 'comments';
+          await disableInlineEditMode();
+          if (annotationUI.inlineCommentsToggleEl) {
+            annotationUI.inlineCommentsToggleEl.checked = true;
+          }
+          if (annotationUI.inlineToggleEl) annotationUI.inlineToggleEl.checked = false;
+          if (annotationUI.inlineAssetsToggleEl) annotationUI.inlineAssetsToggleEl.checked = false;
+          showGlobalSnackbar(ANNOTATION_MESSAGES.collabCompleteEditRestricted);
+          renderThreadMarkers({ resolveTargets: true });
+          renderCommentsPanel();
+          return;
+        }
         if (!isInlineEditingAllowed()) {
           closeCommentEditor();
           closePopupAndSelection();

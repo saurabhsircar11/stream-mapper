@@ -13,6 +13,7 @@ export function createAnnotationState() {
     latestSelfSavedEditsCount: 0,
     pendingRemoteEditsSnapshot: null,
     hasLoadedInitialEditsSnapshot: false,
+    isCollabComplete: false,
     latestRemoteCollabSnapshot: null,
     floatingUiFrameId: null,
     threadTargetCache: new Map(),

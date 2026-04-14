@@ -497,6 +497,10 @@ export default function createInlineEditingController({
 
   async function enableInlineEditMode() {
     if (!annotationUI.mainEl || annotationUI.inlineMode) return false;
+    if (annotationState.isCollabComplete) {
+      showGlobalSnackbar(ANNOTATION_MESSAGES.collabCompleteEditRestricted);
+      return false;
+    }
     if (!isInlineEditingAllowed()) {
       showGlobalSnackbar(ANNOTATION_MESSAGES.inlineEditRestrictedSnackbar);
       return false;
