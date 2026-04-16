@@ -41,6 +41,18 @@ export default function createCommentsPanelController({
     }
   }
 
+  function enforceCollabCompleteUiState() {
+    closeCommentEditor();
+    closePopupAndSelection();
+    annotationUI.annotationMode = 'comments';
+    if (annotationUI.inlineCommentsToggleEl) {
+      annotationUI.inlineCommentsToggleEl.checked = true;
+    }
+    if (annotationUI.inlineToggleEl) annotationUI.inlineToggleEl.checked = false;
+    if (annotationUI.inlineAssetsToggleEl) annotationUI.inlineAssetsToggleEl.checked = false;
+    syncEditLabelAccessState();
+  }
+
   let enableInlineEditMode = async () => {};
   let disableInlineEditMode = () => {};
   let flushPendingCommentsPanelRefresh = () => {};
@@ -774,6 +786,7 @@ export default function createCommentsPanelController({
     const {
       includeEdits = true,
     } = options;
+    const wasCollabComplete = annotationState.isCollabComplete;
 
     annotationState.latestRemoteCollabSnapshot = snapshot;
 
@@ -804,6 +817,19 @@ export default function createCommentsPanelController({
       } catch (error) {
         // eslint-disable-next-line no-console
         console.warn('Could not apply remote edits snapshot', error);
+      }
+    }
+
+    if (!wasCollabComplete && annotationState.isCollabComplete) {
+      enforceCollabCompleteUiState();
+      if (annotationUI.inlineMode) {
+        void disableInlineEditMode().then(() => {
+          renderThreadMarkers({ resolveTargets: true });
+          renderCommentsPanel();
+        });
+      } else {
+        renderThreadMarkers({ resolveTargets: true });
+        renderCommentsPanel();
       }
     }
   }
@@ -1808,9 +1834,7 @@ export default function createCommentsPanelController({
       preserveRemoteEditState = false,
     } = options;
     teardownGlobalListeners({ preserveRemoteEditState });
-    if (window.streamConfig?.collabComplete === true) {
-      annotationState.isCollabComplete = true;
-    }
+    annotationState.isCollabComplete = window.streamConfig?.collabComplete === true;
     annotationUI.mainEl = mainEl;
     ensureFloatingLayer();
     ensureCommentsPanel();

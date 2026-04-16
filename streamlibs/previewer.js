@@ -174,6 +174,7 @@ async function requestStreamConfigFromParent() {
       startReview: getQueryParam('startReview') || getQueryParam('startreview'),
       inlineEditingAllowed: getQueryParam('inlineEditingAllowed'),
       collabRole: getQueryParam('collabRole'),
+      collabComplete: getQueryParam('collabComplete'),
     };
   }
 
